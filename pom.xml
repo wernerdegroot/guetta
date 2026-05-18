@@ -6,7 +6,7 @@
 
     <groupId>nl.wernerdegroot</groupId>
     <artifactId>guetta</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.2</version>
     <packaging>pom</packaging>
 
     <name>Guetta | parent</name>
