@@ -9,8 +9,8 @@ class GetterSetterTest {
     public record Person(String name, int age) {}
 
     @Test
-    void ofWithValidRecord() {
-        NamedGetterSetter<Person, String> nameGetterSetter = GetterSetter.of(Person::name);
+    void fromWithValidRecord() {
+        NamedGetterSetter<Person, String> nameGetterSetter = GetterSetter.from(Person::name);
 
         Person person = new Person("John", 30);
 
@@ -23,32 +23,32 @@ class GetterSetterTest {
     }
 
     @Test
-    void ofWithNullThrowsException() {
-        assertThrows(NullPointerException.class, () -> GetterSetter.of(null));
+    void fromWithNullThrowsException() {
+        assertThrows(NullPointerException.class, () -> GetterSetter.from(null));
     }
 
     @Test
-    void ofWithNonMethodReferenceThrowsException() {
+    void fromWithNonMethodReferenceThrowsException() {
         // A lambda that is not a method reference might not have the expected SerializedLambda structure
         // Although SerializableFunction is a functional interface, NamedMethod.from expects a method reference.
         SerializableFunction<Person, String> fn = (Person p) -> p.name() + "!";
-        assertThrows(RuntimeException.class, () -> GetterSetter.of(fn));
+        assertThrows(RuntimeException.class, () -> GetterSetter.from(fn));
     }
 
     @Test
     void setWithNullRecordThrowsException() {
-        NamedGetterSetter<Person, String> nameGetterSetter = GetterSetter.of(Person::name);
+        NamedGetterSetter<Person, String> nameGetterSetter = GetterSetter.from(Person::name);
         assertThrows(NullPointerException.class, () -> nameGetterSetter.set(null, "Jane"));
     }
 
     @Test
     void getWithNullRecordThrowsException() {
-        NamedGetterSetter<Person, String> nameGetterSetter = GetterSetter.of(Person::name);
+        NamedGetterSetter<Person, String> nameGetterSetter = GetterSetter.from(Person::name);
         assertThrows(NullPointerException.class, () -> nameGetterSetter.get(null));
     }
 
     @Test
-    void ofWithNonRecordMethodReferenceThrowsException() {
+    void fromWithNonRecordMethodReferenceThrowsException() {
         class NotARecord {
             public String name() {
                 return "name";
@@ -56,23 +56,23 @@ class GetterSetterTest {
         }
 
         SerializableFunction<NotARecord, String> fn = NotARecord::name;
-        assertThrows(IllegalArgumentException.class, () -> GetterSetter.of(fn));
+        assertThrows(IllegalArgumentException.class, () -> GetterSetter.from(fn));
     }
 
     @Test
-    void ofWithNonRecordComponentMethodReferenceThrowsException() {
+    void fromWithNonRecordComponentMethodReferenceThrowsException() {
         record SomeRecord(String name) {
             public String notAComponent() {
                 return "not";
             }
         }
 
-        assertThrows(IllegalArgumentException.class, () -> GetterSetter.of(SomeRecord::notAComponent));
+        assertThrows(IllegalArgumentException.class, () -> GetterSetter.from(SomeRecord::notAComponent));
     }
 
     @Test
     void getWithWrongRecordTypeThrowsException() {
-        NamedGetterSetter<Person, String> nameGetterSetter = GetterSetter.of(Person::name);
+        NamedGetterSetter<Person, String> nameGetterSetter = GetterSetter.from(Person::name);
 
         record AnotherPerson(String name) {}
         AnotherPerson another = new AnotherPerson("Jane");

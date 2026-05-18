@@ -4,6 +4,7 @@ import nl.wernerdegroot.guetta.core.optics.internal.GetterSetterImpl;
 import nl.wernerdegroot.guetta.core.optics.internal.NamedGetterSetterImpl;
 import nl.wernerdegroot.guetta.core.optics.internal.NamedMethod;
 
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.UnaryOperator;
 
@@ -29,24 +30,24 @@ public interface GetterSetter<Structure, Value> {
      * @throws NullPointerException if {@code methodReference} is {@code null}
      * @throws RuntimeException     if the method reference is invalid or the class is not a record
      */
-    static <Structure, Value> NamedGetterSetter<Structure, Value> of(SerializableFunction<Structure, Value> methodReference) {
-        Objects.requireNonNull(methodReference, "methodReference must not be null");
+    static <Structure, Value> NamedGetterSetter<Structure, Value> from(SerializableFunction<Structure, Value> methodReference) {
+        Objects.requireNonNull(methodReference, "Method reference must not be null");
 
         var namedMethod = NamedMethod.from(methodReference);
         var methodName = namedMethod.getMethodName();
         var clazz = namedMethod.getTargetClass();
 
         if (!clazz.isRecord()) {
-            throw new IllegalArgumentException("Class " + clazz.getName() + " is not a record");
+            throw new RuntimeException("Class " + clazz.getName() + " is not a record");
         }
 
-        var component = java.util.Arrays.stream(clazz.getRecordComponents())
-                .filter(c -> c.getName().equals(methodName))
+        var component = Arrays.stream(clazz.getRecordComponents())
+                .filter(recordComponent -> recordComponent.getName().equals(methodName))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Method " + methodName + " is not a record component of " + clazz.getName()));
+                .orElseThrow(() -> new RuntimeException("Method " + methodName + " is not a record component of " + clazz.getName()));
 
         Getter<Structure, Value> getter = record -> {
-            Objects.requireNonNull(record, "record must not be null");
+            Objects.requireNonNull(record, "Record must not be null");
 
             if (!record.getClass().equals(clazz)) {
                 throw new IllegalArgumentException("Expected record of type " + clazz.getName() + " but got " + record.getClass().getName());
@@ -63,30 +64,30 @@ public interface GetterSetter<Structure, Value> {
         };
 
         Setter<Structure, Value> setter = (record, value) -> {
-            Objects.requireNonNull(record, "record must not be null");
+            Objects.requireNonNull(record, "Record must not be null");
 
             if (!record.getClass().equals(clazz)) {
                 throw new IllegalArgumentException("Expected record of type " + clazz.getName() + " but got " + record.getClass().getName());
             }
 
             try {
-                var components = clazz.getRecordComponents();
-                var args = new Object[components.length];
-                var parameterTypes = new Class<?>[components.length];
+                var recordComponents = clazz.getRecordComponents();
+                var arguments = new Object[recordComponents.length];
+                var parameterTypes = new Class<?>[recordComponents.length];
 
-                for (int i = 0; i < components.length; i++) {
-                    var c = components[i];
-                    parameterTypes[i] = c.getType();
-                    args[i] = c.getName().equals(methodName)
+                for (int i = 0; i < recordComponents.length; i++) {
+                    var recordComponent = recordComponents[i];
+                    parameterTypes[i] = recordComponent.getType();
+                    arguments[i] = recordComponent.getName().equals(methodName)
                             ? value
-                            : c.getAccessor().invoke(record);
+                            : recordComponent.getAccessor().invoke(record);
                 }
 
                 var constructor = clazz.getDeclaredConstructor(parameterTypes);
                 constructor.setAccessible(true);
 
                 @SuppressWarnings("unchecked")
-                var updated = (Structure) constructor.newInstance(args);
+                var updated = (Structure) constructor.newInstance(arguments);
 
                 return updated;
             } catch (ReflectiveOperationException e) {
@@ -174,6 +175,6 @@ public interface GetterSetter<Structure, Value> {
      * @return a new getter-setter
      */
     default <T> GetterSetter<Structure, T> andThen(SerializableFunction<Value, T> serializableFunction) {
-        return this.andThen(GetterSetter.of(serializableFunction));
+        return this.andThen(GetterSetter.from(serializableFunction));
     }
 }
