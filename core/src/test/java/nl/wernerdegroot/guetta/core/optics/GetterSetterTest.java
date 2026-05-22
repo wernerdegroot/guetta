@@ -56,7 +56,7 @@ class GetterSetterTest {
         }
 
         SerializableFunction<NotARecord, String> fn = NotARecord::name;
-        assertThrows(IllegalArgumentException.class, () -> GetterSetter.from(fn));
+        assertThrows(RuntimeException.class, () -> GetterSetter.from(fn));
     }
 
     @Test
@@ -67,7 +67,7 @@ class GetterSetterTest {
             }
         }
 
-        assertThrows(IllegalArgumentException.class, () -> GetterSetter.from(SomeRecord::notAComponent));
+        assertThrows(RuntimeException.class, () -> GetterSetter.from(SomeRecord::notAComponent));
     }
 
     @Test
