@@ -6,7 +6,7 @@
 
     <groupId>nl.wernerdegroot</groupId>
     <artifactId>guetta</artifactId>
-    <version>0.1.2</version>
+    <version>0.1.2-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Guetta | parent</name>
@@ -87,6 +87,11 @@
             <plugin>
                 <artifactId>maven-gpg-plugin</artifactId>
                 <version>3.2.7</version>
+                <configuration>
+                    <signer>bc</signer>
+                    <keyEnvName>GPG_PRIVATE_KEY</keyEnvName>
+                    <bestPractices>true</bestPractices>
+                </configuration>
                 <executions>
                     <execution>
                         <id>sign-artifacts</id>
@@ -94,13 +99,6 @@
                         <goals>
                             <goal>sign</goal>
                         </goals>
-                        <configuration>
-                            <gpgArguments>
-                                <arg>--batch</arg>
-                                <arg>--pinentry-mode</arg>
-                                <arg>loopback</arg>
-                            </gpgArguments>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>

@@ -6,7 +6,7 @@
     <parent>
         <groupId>nl.wernerdegroot</groupId>
         <artifactId>guetta</artifactId>
-        <version>0.1.2</version>
+        <version>0.1.2-SNAPSHOT</version>
     </parent>
 
     <artifactId>guetta-core</artifactId>
