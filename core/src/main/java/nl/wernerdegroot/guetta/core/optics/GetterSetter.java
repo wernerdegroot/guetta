@@ -14,7 +14,7 @@ import java.util.function.UnaryOperator;
  * @param <Structure> the type of the structure
  * @param <Value>     the type of the value within the structure
  */
-public interface GetterSetter<Structure, Value> {
+public interface GetterSetter<Structure, Value> extends Streamer<Structure, Value>, Getter<Structure, Value>, Setter<Structure, Value>, Modifiable<Structure, Value>, ManyGetterSetter<Structure, Value> {
 
     /**
      * Creates a {@link NamedGetterSetter} from a method reference to a record component.
@@ -54,8 +54,11 @@ public interface GetterSetter<Structure, Value> {
             }
 
             try {
+                var accessor = component.getAccessor();
+                accessor.setAccessible(true);
+
                 @SuppressWarnings("unchecked")
-                var value = (Value) component.getAccessor().invoke(record);
+                var value = (Value) accessor.invoke(record);
 
                 return value;
             } catch (ReflectiveOperationException e) {
@@ -78,9 +81,11 @@ public interface GetterSetter<Structure, Value> {
                 for (int i = 0; i < recordComponents.length; i++) {
                     var recordComponent = recordComponents[i];
                     parameterTypes[i] = recordComponent.getType();
+                    var accessor = recordComponent.getAccessor();
+                    accessor.setAccessible(true);
                     arguments[i] = recordComponent.getName().equals(methodName)
                             ? value
-                            : recordComponent.getAccessor().invoke(record);
+                            : accessor.invoke(record);
                 }
 
                 var constructor = clazz.getDeclaredConstructor(parameterTypes);
@@ -99,23 +104,6 @@ public interface GetterSetter<Structure, Value> {
     }
 
     /**
-     * Gets the value from the structure.
-     *
-     * @param structure the structure to get the value from
-     * @return the value
-     */
-    Value get(Structure structure);
-
-    /**
-     * Sets the value in the structure, returning a new structure.
-     *
-     * @param structure the structure to set the value in
-     * @param value     the new value
-     * @return a new structure with the updated value
-     */
-    Structure set(Structure structure, Value value);
-
-    /**
      * Modifies the value in the structure using the provided modifier function, returning a new structure.
      *
      * @param structure the structure to modify
@@ -126,17 +114,6 @@ public interface GetterSetter<Structure, Value> {
         var value = get(structure);
         var modified = modifier.apply(value);
         return set(structure, modified);
-    }
-
-    /**
-     * Composes this {@link GetterSetter} with a {@link Getter}, resulting in a new {@link Getter}.
-     *
-     * @param that the getter to compose with
-     * @param <T>  the type of the value in the resulting getter
-     * @return a new getter
-     */
-    default <T> Getter<Structure, T> andThenGet(Getter<Value, T> that) {
-        return structure -> that.get(this.get(structure));
     }
 
     /**
@@ -162,8 +139,8 @@ public interface GetterSetter<Structure, Value> {
      * @return a new getter-setter
      */
     default <T> GetterSetter<Structure, T> andThen(GetterSetter<Value, T> that) {
-        var getter = this.andThenGet(that::get);
-        var setter = this.andThenSet(that::set);
+        var getter = this.asGetter().andThen(that);
+        var setter = this.andThenSet(that);
         return new GetterSetterImpl<>(getter, setter);
     }
 
@@ -174,7 +151,7 @@ public interface GetterSetter<Structure, Value> {
      * @param <T>                  the type of the value in the resulting getter-setter
      * @return a new getter-setter
      */
-    default <T> GetterSetter<Structure, T> andThen(SerializableFunction<Value, T> serializableFunction) {
+    default <T> GetterSetter<Structure, T> andThenOn(SerializableFunction<Value, T> serializableFunction) {
         return this.andThen(GetterSetter.from(serializableFunction));
     }
 }
