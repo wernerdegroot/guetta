@@ -1,6 +1,7 @@
 package nl.wernerdegroot.guetta.core;
 
-import nl.wernerdegroot.guetta.core.optics.instances.ListManyGetterSetter;
+import nl.wernerdegroot.guetta.core.optics.EachGetterSetterWithEffect;
+import nl.wernerdegroot.guetta.core.optics.internal.CollectionEachGetterSetterWithEffect;
 
 import java.util.List;
 import java.util.function.Function;
@@ -13,7 +14,7 @@ public class Hello {
         Function<Integer, List<Integer>> doublePositive =
                 x -> List.of(x, -x);
 
-        var traversal = new ListManyGetterSetter<Integer>();
+        var traversal = EachGetterSetterWithEffect.<List<Integer>, Integer>from(List.class);
         var result = traversal.modifyWithList(xs, doublePositive);
 
         System.out.println(result);

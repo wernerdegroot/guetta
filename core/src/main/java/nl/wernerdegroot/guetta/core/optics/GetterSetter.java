@@ -1,11 +1,8 @@
 package nl.wernerdegroot.guetta.core.optics;
 
 import nl.wernerdegroot.guetta.core.optics.internal.GetterSetterImpl;
-import nl.wernerdegroot.guetta.core.optics.internal.NamedGetterSetterImpl;
-import nl.wernerdegroot.guetta.core.optics.internal.NamedMethod;
 
-import java.util.Arrays;
-import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 
 /**
@@ -14,121 +11,10 @@ import java.util.function.UnaryOperator;
  * @param <Structure> the type of the structure
  * @param <Value>     the type of the value within the structure
  */
-public interface GetterSetter<Structure, Value> extends Streamer<Structure, Value>, Getter<Structure, Value>, Setter<Structure, Value>, Modifiable<Structure, Value>, ManyGetterSetter<Structure, Value> {
+public interface GetterSetter<Structure, Value> extends Getter<Structure, Value>, Setter<Structure, Value>, EachGetterSetter<Structure, Value> {
 
-    /**
-     * Creates a {@link NamedGetterSetter} from a method reference to a record component.
-     * <p>
-     * The method reference must be to a component of a Java record. This method uses reflection
-     * to extract the component name and provide both a getter and a setter (which creates a new
-     * record instance with the updated value).
-     *
-     * @param methodReference a method reference to a record component (e.g., {@code Person::name})
-     * @param <Structure>     the type of the record
-     * @param <Value>         the type of the component
-     * @return a {@link NamedGetterSetter} for the specified component
-     * @throws NullPointerException if {@code methodReference} is {@code null}
-     * @throws RuntimeException     if the method reference is invalid or the class is not a record
-     */
-    static <Structure, Value> NamedGetterSetter<Structure, Value> from(SerializableFunction<Structure, Value> methodReference) {
-        Objects.requireNonNull(methodReference, "Method reference must not be null");
-
-        var namedMethod = NamedMethod.from(methodReference);
-        var methodName = namedMethod.getMethodName();
-        var clazz = namedMethod.getTargetClass();
-
-        if (!clazz.isRecord()) {
-            throw new RuntimeException("Class " + clazz.getName() + " is not a record");
-        }
-
-        var component = Arrays.stream(clazz.getRecordComponents())
-                .filter(recordComponent -> recordComponent.getName().equals(methodName))
-                .findFirst()
-                .orElseThrow(() -> new RuntimeException("Method " + methodName + " is not a record component of " + clazz.getName()));
-
-        Getter<Structure, Value> getter = record -> {
-            Objects.requireNonNull(record, "Record must not be null");
-
-            if (!record.getClass().equals(clazz)) {
-                throw new IllegalArgumentException("Expected record of type " + clazz.getName() + " but got " + record.getClass().getName());
-            }
-
-            try {
-                var accessor = component.getAccessor();
-                accessor.setAccessible(true);
-
-                @SuppressWarnings("unchecked")
-                var value = (Value) accessor.invoke(record);
-
-                return value;
-            } catch (ReflectiveOperationException e) {
-                throw new RuntimeException("Could not invoke getter " + methodName + " on " + record.getClass().getName(), e);
-            }
-        };
-
-        Setter<Structure, Value> setter = (record, value) -> {
-            Objects.requireNonNull(record, "Record must not be null");
-
-            if (!record.getClass().equals(clazz)) {
-                throw new IllegalArgumentException("Expected record of type " + clazz.getName() + " but got " + record.getClass().getName());
-            }
-
-            try {
-                var recordComponents = clazz.getRecordComponents();
-                var arguments = new Object[recordComponents.length];
-                var parameterTypes = new Class<?>[recordComponents.length];
-
-                for (int i = 0; i < recordComponents.length; i++) {
-                    var recordComponent = recordComponents[i];
-                    parameterTypes[i] = recordComponent.getType();
-                    var accessor = recordComponent.getAccessor();
-                    accessor.setAccessible(true);
-                    arguments[i] = recordComponent.getName().equals(methodName)
-                            ? value
-                            : accessor.invoke(record);
-                }
-
-                var constructor = clazz.getDeclaredConstructor(parameterTypes);
-                constructor.setAccessible(true);
-
-                @SuppressWarnings("unchecked")
-                var updated = (Structure) constructor.newInstance(arguments);
-
-                return updated;
-            } catch (ReflectiveOperationException e) {
-                throw new RuntimeException("Could not copy record " + clazz.getName(), e);
-            }
-        };
-
-        return new NamedGetterSetterImpl<>(getter, setter, methodName);
-    }
-
-    /**
-     * Modifies the value in the structure using the provided modifier function, returning a new structure.
-     *
-     * @param structure the structure to modify
-     * @param modifier  the function to apply to the value
-     * @return a new structure with the modified value
-     */
-    default Structure modify(Structure structure, UnaryOperator<Value> modifier) {
-        var value = get(structure);
-        var modified = modifier.apply(value);
-        return set(structure, modified);
-    }
-
-    /**
-     * Composes this {@link GetterSetter} with a {@link Setter}, resulting in a new {@link Setter}.
-     *
-     * @param that the setter to compose with
-     * @param <T>  the type of the value in the resulting setter
-     * @return a new setter
-     */
-    default <T> Setter<Structure, T> andThenSet(Setter<Value, T> that) {
-        return (structure, value) -> {
-            var intermediate = this.get(structure);
-            var modifiedIntermediate = that.set(intermediate, value);
-            return this.set(structure, modifiedIntermediate);
-        };
+    static <Structure, Value> GetterSetter<Structure, Value> from(Getter<Structure, Value> getter, Setter<Structure, Value> setter) {
+        return new GetterSetterImpl<>(getter, setter);
     }
 
     /**
@@ -140,18 +26,12 @@ public interface GetterSetter<Structure, Value> extends Streamer<Structure, Valu
      */
     default <T> GetterSetter<Structure, T> andThen(GetterSetter<Value, T> that) {
         var getter = this.asGetter().andThen(that);
-        var setter = this.andThenSet(that);
+        var setter = this.asSetter().andThen(that);
         return new GetterSetterImpl<>(getter, setter);
     }
 
-    /**
-     * Composes this {@link GetterSetter} with a method reference to a record component.
-     *
-     * @param serializableFunction a method reference to a record component
-     * @param <T>                  the type of the value in the resulting getter-setter
-     * @return a new getter-setter
-     */
-    default <T> GetterSetter<Structure, T> andThenOn(SerializableFunction<Value, T> serializableFunction) {
-        return this.andThen(GetterSetter.from(serializableFunction));
+    @Override
+    default GetterSetter<Structure, Value> filter(Predicate<Value> predicate) {
+        throw new RuntimeException("Not implemented");
     }
 }

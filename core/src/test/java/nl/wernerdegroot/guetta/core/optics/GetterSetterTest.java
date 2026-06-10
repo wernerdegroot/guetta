@@ -1,86 +1,44 @@
 package nl.wernerdegroot.guetta.core.optics;
 
+import nl.wernerdegroot.guetta.core.optics.data.PokemonCard;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class GetterSetterTest {
+    
+    private final GetterSetter<PokemonCard, Integer> hpGS = GetterSetter.from(
+            PokemonCard::hp,
+            (p, modifier) -> new PokemonCard(p.name(), modifier.apply(p.hp()), p.type(), p.attacks(), p.weakness(), p.resistance(), p.retreatCost())
+    );
 
-    public record Person(String name, int age) {}
+    private final GetterSetter<PokemonCard, PokemonCard.Weakness> weaknessGS = GetterSetter.from(
+            PokemonCard::weakness,
+            (p, modifier) -> new PokemonCard(p.name(), p.hp(), p.type(), p.attacks(), modifier.apply(p.weakness()), p.resistance(), p.retreatCost())
+    );
+
+    private final GetterSetter<PokemonCard.Weakness, Integer> factorGS = GetterSetter.from(
+            PokemonCard.Weakness::factor,
+            (w, modifier) -> new PokemonCard.Weakness(w.type(), modifier.apply(w.factor()))
+    );
 
     @Test
-    void fromWithValidRecord() {
-        NamedGetterSetter<Person, String> nameGetterSetter = GetterSetter.from(Person::name);
+    void should_create_a_getter_setter_from_a_getter_and_a_setter() {
+        PokemonCard bulbasaur = PokemonCard.bulbasaurWithWeaknessFactor(2);
+        assertEquals(70, hpGS.get(bulbasaur));
 
-        Person person = new Person("John", 30);
-
-        assertEquals("John", nameGetterSetter.get(person));
-        assertEquals("name", nameGetterSetter.getName());
-
-        Person updated = nameGetterSetter.set(person, "Jane");
-        assertEquals("Jane", updated.name());
-        assertEquals(30, updated.age());
+        PokemonCard updated = hpGS.set(bulbasaur, 100);
+        assertEquals(100, updated.hp());
     }
 
     @Test
-    void fromWithNullThrowsException() {
-        assertThrows(NullPointerException.class, () -> GetterSetter.from(null));
-    }
+    void should_compose_with_another_getter_setter() {
+        GetterSetter<PokemonCard, Integer> weaknessFactorGS = weaknessGS.andThen(factorGS);
 
-    @Test
-    void fromWithNonMethodReferenceThrowsException() {
-        // A lambda that is not a method reference might not have the expected SerializedLambda structure
-        // Although SerializableFunction is a functional interface, NamedMethod.from expects a method reference.
-        SerializableFunction<Person, String> fn = (Person p) -> p.name() + "!";
-        assertThrows(RuntimeException.class, () -> GetterSetter.from(fn));
-    }
+        PokemonCard bulbasaur = PokemonCard.bulbasaurWithWeaknessFactor(2);
+        assertEquals(2, weaknessFactorGS.get(bulbasaur));
 
-    @Test
-    void setWithNullRecordThrowsException() {
-        NamedGetterSetter<Person, String> nameGetterSetter = GetterSetter.from(Person::name);
-        assertThrows(NullPointerException.class, () -> nameGetterSetter.set(null, "Jane"));
-    }
-
-    @Test
-    void getWithNullRecordThrowsException() {
-        NamedGetterSetter<Person, String> nameGetterSetter = GetterSetter.from(Person::name);
-        assertThrows(NullPointerException.class, () -> nameGetterSetter.get(null));
-    }
-
-    @Test
-    void fromWithNonRecordMethodReferenceThrowsException() {
-        class NotARecord {
-            public String name() {
-                return "name";
-            }
-        }
-
-        SerializableFunction<NotARecord, String> fn = NotARecord::name;
-        assertThrows(RuntimeException.class, () -> GetterSetter.from(fn));
-    }
-
-    @Test
-    void fromWithNonRecordComponentMethodReferenceThrowsException() {
-        record SomeRecord(String name) {
-            public String notAComponent() {
-                return "not";
-            }
-        }
-
-        assertThrows(RuntimeException.class, () -> GetterSetter.from(SomeRecord::notAComponent));
-    }
-
-    @Test
-    void getWithWrongRecordTypeThrowsException() {
-        NamedGetterSetter<Person, String> nameGetterSetter = GetterSetter.from(Person::name);
-
-        record AnotherPerson(String name) {}
-        AnotherPerson another = new AnotherPerson("Jane");
-
-        assertThrows(IllegalArgumentException.class, () -> {
-            @SuppressWarnings("unchecked")
-            var nameGetterSetterRaw = (NamedGetterSetter) nameGetterSetter;
-            nameGetterSetterRaw.get(another);
-        });
+        PokemonCard updated = weaknessFactorGS.set(bulbasaur, 3);
+        assertEquals(3, updated.weakness().factor());
     }
 }

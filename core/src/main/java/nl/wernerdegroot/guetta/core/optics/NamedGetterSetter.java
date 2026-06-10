@@ -1,17 +1,17 @@
 package nl.wernerdegroot.guetta.core.optics;
 
-/**
- * A {@link GetterSetter} that also has a name, typically representing the component name.
- *
- * @param <Structure> the type of the structure
- * @param <Value>     the type of the value
- */
-public interface NamedGetterSetter<Structure, Value> extends GetterSetter<Structure, Value> {
+import nl.wernerdegroot.guetta.core.optics.internal.NamedGetterSetterImpl;
 
-    /**
-     * Returns the name of the component this getter-setter operates on.
-     *
-     * @return the name
-     */
-    String getName();
+import java.util.function.Predicate;
+
+public interface NamedGetterSetter<Structure, Value> extends Named, GetterSetter<Structure, Value> {
+
+    static <Structure, Value> NamedGetterSetter<Structure, Value> from(String name, Getter<Structure, Value> getter, Setter<Structure, Value> setter) {
+        return new NamedGetterSetterImpl<>(name, getter, setter);
+    }
+
+    @Override
+    default NamedGetterSetter<Structure, Value> filter(Predicate<Value> predicate) {
+        throw new RuntimeException("Not implemented");
+    }
 }

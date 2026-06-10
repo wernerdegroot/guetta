@@ -5,25 +5,21 @@ import nl.wernerdegroot.guetta.core.optics.GetterSetter;
 import nl.wernerdegroot.guetta.core.optics.NamedGetterSetter;
 import nl.wernerdegroot.guetta.core.optics.Setter;
 
-public record NamedGetterSetterImpl<Structure, Value>(GetterSetter<Structure, Value> getterSetter,
-                                                      String name) implements NamedGetterSetter<Structure, Value> {
+import java.util.function.UnaryOperator;
 
-    public NamedGetterSetterImpl(Getter<Structure, Value> getter, Setter<Structure, Value> setter, String name) {
-        this(new GetterSetterImpl<>(getter, setter), name);
-    }
+public record NamedGetterSetterImpl<Structure, Value>(
+        String name,
+        Getter<Structure, Value> getter,
+        Setter<Structure, Value> setter
+) implements NamedGetterSetter<Structure, Value> {
 
     @Override
     public Value get(Structure structure) {
-        return getterSetter.get(structure);
+        return getter.get(structure);
     }
 
     @Override
-    public Structure set(Structure structure, Value value) {
-        return getterSetter.set(structure, value);
-    }
-
-    @Override
-    public String getName() {
-        return name;
+    public Structure modify(Structure structure, UnaryOperator<Value> modifier) {
+        return setter.modify(structure, modifier);
     }
 }
